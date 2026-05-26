@@ -15,7 +15,6 @@ PASSWORD = os.environ.get("PASSWORD", "")
 
 
 async def click_in_frames(page, selectors, label):
-    """Try clicking on main page first, then all iframes."""
     for sel in selectors:
         try:
             await page.click(sel, timeout=4000)
@@ -27,7 +26,7 @@ async def click_in_frames(page, selectors, label):
         for sel in selectors:
             try:
                 await frame.click(sel, timeout=3000)
-                print(f"[OK] Clicked '{label}' in frame[{i}] ({frame.url[:70]})  =>  {sel}")
+                print(f"[OK] Clicked '{label}' in frame[{i}]  =>  {sel}")
                 return True
             except Exception:
                 pass
@@ -35,7 +34,6 @@ async def click_in_frames(page, selectors, label):
 
 
 async def fill_in_frames(page, selectors, value, label):
-    """Try filling on main page first, then all iframes."""
     for sel in selectors:
         try:
             await page.wait_for_selector(sel, timeout=4000, state="visible")
@@ -56,9 +54,8 @@ async def fill_in_frames(page, selectors, value, label):
     return False
 
 
-async def dump_all_clickables(page, context=""):
-    """Dump all clickable elements across all frames for debugging."""
-    print(f"[DEBUG] ---- Clickable elements dump: {context} ----")
+async def dump_clickables(page, context=""):
+    print(f"[DEBUG] ---- Dump: {context} ----")
     for i, frame in enumerate(page.frames):
         try:
             items = await frame.eval_on_selector_all(
@@ -66,11 +63,10 @@ async def dump_all_clickables(page, context=""):
                 "els => els.map(e => (e.innerText || e.value || e.getAttribute('aria-label') || e.getAttribute('title') || '').trim()).filter(Boolean)"
             )
             if items:
-                print(f"  Frame[{i}] url={frame.url[:80]}")
-                print(f"  Items: {items[:50]}")
+                print(f"  Frame[{i}]: {items[:50]}")
         except Exception as ex:
             print(f"  Frame[{i}] error: {ex}")
-    print(f"[DEBUG] ---- end dump ----")
+    print(f"[DEBUG] ---- end ----")
 
 
 async def run():
@@ -95,7 +91,6 @@ async def run():
         await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
         await page.wait_for_timeout(3000)
         print(f"  Title : {await page.title()}")
-        print(f"  URL   : {page.url}")
 
         # ── STEP 2: Fill username ─────────────────────────────────────────
         print("[STEP 2] Filling username ...")
@@ -103,83 +98,76 @@ async def run():
             "#USER", "input[name='USER']",
             "input[autocomplete='username']",
             "input[id*='user' i][type='text']",
-            "input[name*='user' i][type='text']",
-            "input[placeholder*='user' i]",
             "input[type='text']",
         ]
         if not await fill_in_frames(page, user_selectors, USERNAME, "Username"):
-            await dump_all_clickables(page, "Username field not found")
             raise RuntimeError("FAILED at STEP 2: Username field not found")
-        print("  Username filled successfully")
 
         # ── STEP 3: Click Next ────────────────────────────────────────────
-        print("[STEP 3] Clicking Next / Submit ...")
+        print("[STEP 3] Submitting username ...")
         submit_selectors = [
             "input[type='submit']", "button[type='submit']",
-            "#submit-button", "button:has-text('Next')",
-            "button:has-text('Continue')", "button:has-text('Sign In')",
-            "input[value='Next']", "input[value='Submit']", "input[value='Sign In']",
+            "button:has-text('Next')", "button:has-text('Sign In')",
+            "input[value='Next']", "input[value='Submit']",
         ]
         if not await click_in_frames(page, submit_selectors, "Next"):
             await page.keyboard.press("Enter")
-            print("  Fallback: pressed Enter key")
+            print("  Fallback: Enter key")
         await page.wait_for_timeout(4000)
-        print(f"  Title after Next: {await page.title()}")
-        print(f"  URL   after Next: {page.url}")
 
         # ── STEP 4: Fill password ─────────────────────────────────────────
         print("[STEP 4] Filling password ...")
         pass_selectors = [
             "#PASSWORD", "input[name='PASSWORD']",
             "input[type='password']",
-            "input[autocomplete='current-password']",
-            "input[id*='pass' i]", "input[name*='pass' i]",
         ]
         if not await fill_in_frames(page, pass_selectors, PASSWORD, "Password"):
-            await dump_all_clickables(page, "Password field not found")
             raise RuntimeError("FAILED at STEP 4: Password field not found")
-        print("  Password filled successfully")
 
         # ── STEP 5: Submit login ──────────────────────────────────────────
         print("[STEP 5] Submitting login ...")
         if not await click_in_frames(page, submit_selectors, "Submit"):
             await page.keyboard.press("Enter")
-            print("  Fallback: pressed Enter key")
+            print("  Fallback: Enter key")
 
         try:
             await page.wait_for_load_state("networkidle", timeout=30000)
         except PlaywrightTimeout:
-            print("  [WARN] networkidle timeout - continuing anyway")
+            print("  [WARN] networkidle timeout - continuing")
 
         await page.wait_for_timeout(3000)
         print(f"  Title after login: {await page.title()}")
         print(f"  URL   after login: {page.url}")
 
         # ── STEP 6: Dismiss popup with ESC ───────────────────────────────
-        print("[STEP 6] Pressing ESC to dismiss popup ...")
+        print("[STEP 6] ESC to dismiss popup ...")
         await page.keyboard.press("Escape")
         await page.wait_for_timeout(2000)
 
-        # ── STEP 7: Click Me ──────────────────────────────────────────────
-        print("[STEP 7] Clicking 'Me' in sidebar ...")
+        # ── STEP 7: Click 'Me' sidebar item to expand it ─────────────────
+        # From logs: 'Expand Me' and 'Me' both exist.
+        # 'Expand Me' is the aria-label on the sidebar toggle.
+        print("[STEP 7] Clicking 'Me' / 'Expand Me' to open the submenu ...")
         me_selectors = [
-            "text=Me", "a:has-text('Me')", "[aria-label='Me']",
-            "[title='Me']", "span:has-text('Me')",
-            "li:has-text('Me') > a", "nav >> text=Me",
+            "[aria-label='Expand Me']",
+            "text=Expand Me",
+            "[aria-label='Me']",
+            "text=Me",
+            "a:has-text('Me')",
+            "span:has-text('Me')",
         ]
-        if not await click_in_frames(page, me_selectors, "Me"):
-            await dump_all_clickables(page, "Me not found")
-            raise RuntimeError("FAILED at STEP 7: 'Me' sidebar item not found in any frame")
+        if not await click_in_frames(page, me_selectors, "Me/Expand Me"):
+            await dump_clickables(page, "Me not found")
+            raise RuntimeError("FAILED at STEP 7: Me sidebar item not found")
 
-        try:
-            await page.wait_for_load_state("networkidle", timeout=15000)
-        except PlaywrightTimeout:
-            pass
         await page.wait_for_timeout(2000)
         print(f"  Title after Me: {await page.title()}")
-        print(f"  URL   after Me: {page.url}")
 
-        # ── STEP 8: Click Time & Attendance ──────────────────────────────
+        # ── STEP 8: Click 'Time & Attendance' ────────────────────────────
+        # From logs the available items after Me are:
+        # 'View Payslip', 'Pay History', 'Tax Statement', 'Tax Submission' etc.
+        # T&A was NOT in the list — maybe we need to scroll or it appears after expand.
+        # Try all possible names including abbreviations.
         print("[STEP 8] Clicking 'Time & Attendance' ...")
         ta_selectors = [
             "text=Time & Attendance",
@@ -187,12 +175,16 @@ async def run():
             "a:has-text('Time & Attendance')",
             "a:has-text('Time and Attendance')",
             "a:has-text('Attendance')",
-            "[title*='Time']",
             "span:has-text('Time & Attendance')",
+            "[title*='Attendance']",
+            "[aria-label*='Attendance']",
+            "text=T&A",
+            "a:has-text('T&A')",
         ]
         if not await click_in_frames(page, ta_selectors, "Time & Attendance"):
-            await dump_all_clickables(page, "T&A not found")
-            raise RuntimeError("FAILED at STEP 8: 'Time & Attendance' not found in any frame")
+            # Dump to see what's available after Me expand
+            await dump_clickables(page, "T&A not found - after Me click")
+            raise RuntimeError("FAILED at STEP 8: Time & Attendance not found")
 
         try:
             await page.wait_for_load_state("networkidle", timeout=30000)
@@ -213,11 +205,10 @@ async def run():
             "[title='Punch Out']",
         ]
         if not await click_in_frames(page, punch_selectors, "Punch Out"):
-            await dump_all_clickables(page, "Punch Out not found")
-            raise RuntimeError("FAILED at STEP 9: 'Punch Out' button not found in any frame")
+            await dump_clickables(page, "Punch Out not found")
+            raise RuntimeError("FAILED at STEP 9: Punch Out button not found")
 
         await page.wait_for_timeout(3000)
-        print(f"  Title after Punch Out: {await page.title()}")
         print("=" * 60)
         print("[SUCCESS] Punch Out completed successfully!")
         print("=" * 60)
