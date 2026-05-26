@@ -1,0 +1,43 @@
+name: Auto Login and Click
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Page to open after login"
+        required: true
+        default: "https://example.com/dashboard"
+      button_text:
+        description: "Button text to click"
+        required: true
+        default: "Submit"
+
+  schedule:
+    # Runs every Monday and Friday at 10:00 AM IST
+    # GitHub cron uses UTC, so 10:00 AM IST = 04:30 UTC
+    - cron: "30 4 * * 1,5"
+
+jobs:
+  automate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Run automation
+        env:
+          LOGIN_URL: "https://example.com/login"
+          TARGET_URL: ${{ github.event.inputs.target_url || 'https://example.com/dashboard' }}
+          BUTTON_TEXT: ${{ github.event.inputs.button_text || 'Submit' }}
+          USERNAME: ${{ secrets.LOGIN_USERNAME }}
+          PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        run: python main.py
