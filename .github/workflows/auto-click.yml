@@ -1,19 +1,9 @@
 name: VISTA Daily Punch Out
 
-# ─────────────────────────────────────────────────────────────────
-# Secrets required (Settings → Secrets → Actions):
-#   LOGIN_USERNAME  – ADP VISTA username
-#   LOGIN_PASSWORD  – ADP VISTA password
-#
-# To change schedule: open index.html in a browser, pick days/time,
-# copy the cron value and replace the cron line below, then commit.
-# ─────────────────────────────────────────────────────────────────
-
 on:
   workflow_dispatch: {}
-
   schedule:
-    # Default: Mon-Fri at 6:30 PM IST (13:00 UTC)
+    # Mon-Fri at 6:30 PM IST (13:00 UTC)
     - cron: "0 13 * * 1-5"
 
 env:
@@ -49,3 +39,12 @@ jobs:
           USERNAME: ${{ secrets.LOGIN_USERNAME }}
           PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         run: python main.py
+
+      # Always upload screenshots even if the run fails
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: screenshots/
+          retention-days: 3
