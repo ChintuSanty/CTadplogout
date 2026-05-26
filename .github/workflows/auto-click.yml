@@ -1,43 +1,58 @@
-name: Auto Login and Click
+name: Daily Auto Login and Task
 
 on:
   workflow_dispatch:
-    inputs:
-      target_url:
-        description: "Page to open after login"
-        required: true
-        default: "https://example.com/dashboard"
-      button_text:
-        description: "Button text to click"
-        required: true
-        default: "Submit"
+      inputs:
+            hour_ist:
+                    description: "Hour to run (IST, 24h format, e.g. 9 for 9 AM)"
+                            required: true
+                                    default: "9"
+                                          target_url:
+                                                  description: "Page to open after login"
+                                                          required: true
+                                                                  default: "https://adp.adp.com"
+                                                                        button_text:
+                                                                                description: "Button/link text to click after login"
+                                                                                        required: false
+                                                                                                default: "Log Out"
 
-  schedule:
-    # Runs every Monday and Friday at 10:00 AM IST
-    # GitHub cron uses UTC, so 10:00 AM IST = 04:30 UTC
-    - cron: "30 4 * * 1,5"
-
-jobs:
-  automate:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Playwright
-        run: |
-          pip install playwright
-          playwright install --with-deps chromium
-
-      - name: Run automation
-        env:
-          LOGIN_URL: "https://example.com/login"
-          TARGET_URL: ${{ github.event.inputs.target_url || 'https://example.com/dashboard' }}
-          BUTTON_TEXT: ${{ github.event.inputs.button_text || 'Submit' }}
-          USERNAME: ${{ secrets.LOGIN_USERNAME }}
-          PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        run: python main.py
+                                                                                                  schedule:
+                                                                                                      # Runs daily at 9:00 AM IST (03:30 UTC)
+                                                                                                          # IST = UTC + 5:30  →  9:00 AM IST = 03:30 UTC
+                                                                                                              - cron: "30 3 * * *"
+                                                                                                              
+                                                                                                              env:
+                                                                                                                TZ: "Asia/Kolkata"   # IST timezone for log readability
+                                                                                                                
+                                                                                                                jobs:
+                                                                                                                  automate:
+                                                                                                                      runs-on: ubuntu-latest
+                                                                                                                      
+                                                                                                                          steps:
+                                                                                                                                - name: Checkout repository
+                                                                                                                                        uses: actions/checkout@v4
+                                                                                                                                        
+                                                                                                                                              - name: Set up Python 3.11
+                                                                                                                                                      uses: actions/setup-python@v5
+                                                                                                                                                              with:
+                                                                                                                                                                        python-version: "3.11"
+                                                                                                                                                                        
+                                                                                                                                                                              - name: Install Playwright and dependencies
+                                                                                                                                                                                      run: |
+                                                                                                                                                                                                pip install playwright
+                                                                                                                                                                                                          playwright install --with-deps chromium
+                                                                                                                                                                                                          
+                                                                                                                                                                                                                - name: Show scheduled run time (IST)
+                                                                                                                                                                                                                        run: |
+                                                                                                                                                                                                                                  echo "Current UTC time : $(date -u)"
+                                                                                                                                                                                                                                            echo "Current IST time : $(TZ='Asia/Kolkata' date)"
+                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                  - name: Run daily automation
+                                                                                                                                                                                                                                                          env:
+                                                                                                                                                                                                                                                                    LOGIN_URL: "https://adp.adp.com"
+                                                                                                                                                                                                                                                                              TARGET_URL: ${{ github.event.inputs.target_url || 'https://adp.adp.com' }}
+                                                                                                                                                                                                                                                                                        BUTTON_TEXT: ${{ github.event.inputs.button_text || 'Log Out' }}
+                                                                                                                                                                                                                                                                                                  HOUR_IST: ${{ github.event.inputs.hour_ist || '9' }}
+                                                                                                                                                                                                                                                                                                            USERNAME: ${{ secrets.LOGIN_USERNAME }}
+                                                                                                                                                                                                                                                                                                                      PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+                                                                                                                                                                                                                                                                                                                              run: python main.py
