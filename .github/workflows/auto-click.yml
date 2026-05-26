@@ -1,36 +1,23 @@
 name: VISTA Daily Punch Out
 
 # ─────────────────────────────────────────────────────────────────
-# HOW TO CONFIGURE
-#   1. Go to Settings → Secrets → Actions and add:
-#        LOGIN_USERNAME  – your VISTA username
-#        LOGIN_PASSWORD  – your VISTA password
-#   2. The schedule below runs Mon-Fri at 6:30 PM IST by default.
-#      Use index.html (open it in a browser) to generate a custom
-#      cron line, then paste it here and commit.
+# Secrets required (Settings → Secrets → Actions):
+#   LOGIN_USERNAME  – ADP VISTA username
+#   LOGIN_PASSWORD  – ADP VISTA password
+#
+# To change schedule: open index.html in a browser, pick days/time,
+# copy the cron value and replace the cron line below, then commit.
 # ─────────────────────────────────────────────────────────────────
 
 on:
-  # Manual trigger with optional overrides
-  workflow_dispatch:
-    inputs:
-      login_url:
-        description: "VISTA login URL"
-        required: false
-        default: "https://vista.yourcompany.com/login"
-      punch_time_ist:
-        description: "Punch-out time in IST (HH:MM, 24h) – informational only"
-        required: false
-        default: "18:30"
+  workflow_dispatch: {}
 
   schedule:
-    # Default: Mon-Fri at 6:30 PM IST  →  13:00 UTC
-    # To change: open index.html in a browser, pick your days/time,
-    # copy the generated cron value and replace the line below.
+    # Default: Mon-Fri at 6:30 PM IST (13:00 UTC)
     - cron: "0 13 * * 1-5"
 
 env:
-  TZ: "Asia/Kolkata"          # Makes log timestamps show IST
+  TZ: "Asia/Kolkata"
 
 jobs:
   punch-out:
@@ -38,32 +25,27 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Python setup ───────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # ── 3. Install Playwright + Chromium ─────────────────────
-      - name: Install Playwright and dependencies
+      - name: Install Playwright and Chromium
         run: |
           pip install playwright
           playwright install --with-deps chromium
 
-      # ── 4. Log current IST time ───────────────────────────────
-      - name: Show run time (IST)
+      - name: Show run time in IST
         run: |
           echo "UTC : $(date -u)"
           echo "IST : $(TZ='Asia/Kolkata' date)"
 
-      # ── 5. Run the Playwright automation ─────────────────────
       - name: Run VISTA Punch Out
         env:
-          LOGIN_URL: ${{ github.event.inputs.login_url || 'https://vista.yourcompany.com/login' }}
-          USERNAME:  ${{ secrets.LOGIN_USERNAME }}
-          PASSWORD:  ${{ secrets.LOGIN_PASSWORD }}
+          LOGIN_URL: "https://online.apac.adp.com/signin/v1/?APPID=ADPVISTA-IN&productId=ff803a24-0ee0-47fc-e053-f282530bfabe&returnURL=https://www.vista.adp.com/in/&callingAppId=ADPVISTA&TARGET=-SM-https://www.vista.adp.com/in/"
+          USERNAME: ${{ secrets.LOGIN_USERNAME }}
+          PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         run: python main.py
