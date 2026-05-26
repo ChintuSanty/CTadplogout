@@ -18,15 +18,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "20"
 
       - name: Install Playwright and Chromium
         run: |
-          pip install playwright
-          playwright install --with-deps chromium
+          npm install playwright
+          npx playwright install --with-deps chromium
 
       - name: Show run time in IST
         run: |
@@ -38,4 +38,4 @@ jobs:
           LOGIN_URL: "https://online.apac.adp.com/signin/v1/?APPID=ADPVISTA-IN&productId=ff803a24-0ee0-47fc-e053-f282530bfabe&returnURL=https://www.vista.adp.com/in/&callingAppId=ADPVISTA&TARGET=-SM-https://www.vista.adp.com/in/"
           USERNAME: ${{ secrets.LOGIN_USERNAME }}
           PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        run: python main.py
+        run: node main.js
