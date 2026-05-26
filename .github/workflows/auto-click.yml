@@ -1,58 +1,69 @@
-name: Daily Auto Login and Task
+name: VISTA Daily Punch Out
+
+# ─────────────────────────────────────────────────────────────────
+# HOW TO CONFIGURE
+#   1. Go to Settings → Secrets → Actions and add:
+#        LOGIN_USERNAME  – your VISTA username
+#        LOGIN_PASSWORD  – your VISTA password
+#   2. The schedule below runs Mon-Fri at 6:30 PM IST by default.
+#      Use index.html (open it in a browser) to generate a custom
+#      cron line, then paste it here and commit.
+# ─────────────────────────────────────────────────────────────────
 
 on:
+  # Manual trigger with optional overrides
   workflow_dispatch:
-      inputs:
-            hour_ist:
-                    description: "Hour to run (IST, 24h format, e.g. 9 for 9 AM)"
-                            required: true
-                                    default: "9"
-                                          target_url:
-                                                  description: "Page to open after login"
-                                                          required: true
-                                                                  default: "https://adp.adp.com"
-                                                                        button_text:
-                                                                                description: "Button/link text to click after login"
-                                                                                        required: false
-                                                                                                default: "Log Out"
+    inputs:
+      login_url:
+        description: "VISTA login URL"
+        required: false
+        default: "https://vista.yourcompany.com/login"
+      punch_time_ist:
+        description: "Punch-out time in IST (HH:MM, 24h) – informational only"
+        required: false
+        default: "18:30"
 
-                                                                                                  schedule:
-                                                                                                      # Runs daily at 9:00 AM IST (03:30 UTC)
-                                                                                                          # IST = UTC + 5:30  →  9:00 AM IST = 03:30 UTC
-                                                                                                              - cron: "30 3 * * *"
-                                                                                                              
-                                                                                                              env:
-                                                                                                                TZ: "Asia/Kolkata"   # IST timezone for log readability
-                                                                                                                
-                                                                                                                jobs:
-                                                                                                                  automate:
-                                                                                                                      runs-on: ubuntu-latest
-                                                                                                                      
-                                                                                                                          steps:
-                                                                                                                                - name: Checkout repository
-                                                                                                                                        uses: actions/checkout@v4
-                                                                                                                                        
-                                                                                                                                              - name: Set up Python 3.11
-                                                                                                                                                      uses: actions/setup-python@v5
-                                                                                                                                                              with:
-                                                                                                                                                                        python-version: "3.11"
-                                                                                                                                                                        
-                                                                                                                                                                              - name: Install Playwright and dependencies
-                                                                                                                                                                                      run: |
-                                                                                                                                                                                                pip install playwright
-                                                                                                                                                                                                          playwright install --with-deps chromium
-                                                                                                                                                                                                          
-                                                                                                                                                                                                                - name: Show scheduled run time (IST)
-                                                                                                                                                                                                                        run: |
-                                                                                                                                                                                                                                  echo "Current UTC time : $(date -u)"
-                                                                                                                                                                                                                                            echo "Current IST time : $(TZ='Asia/Kolkata' date)"
-                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                  - name: Run daily automation
-                                                                                                                                                                                                                                                          env:
-                                                                                                                                                                                                                                                                    LOGIN_URL: "https://adp.adp.com"
-                                                                                                                                                                                                                                                                              TARGET_URL: ${{ github.event.inputs.target_url || 'https://adp.adp.com' }}
-                                                                                                                                                                                                                                                                                        BUTTON_TEXT: ${{ github.event.inputs.button_text || 'Log Out' }}
-                                                                                                                                                                                                                                                                                                  HOUR_IST: ${{ github.event.inputs.hour_ist || '9' }}
-                                                                                                                                                                                                                                                                                                            USERNAME: ${{ secrets.LOGIN_USERNAME }}
-                                                                                                                                                                                                                                                                                                                      PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-                                                                                                                                                                                                                                                                                                                              run: python main.py
+  schedule:
+    # Default: Mon-Fri at 6:30 PM IST  →  13:00 UTC
+    # To change: open index.html in a browser, pick your days/time,
+    # copy the generated cron value and replace the line below.
+    - cron: "0 13 * * 1-5"
+
+env:
+  TZ: "Asia/Kolkata"          # Makes log timestamps show IST
+
+jobs:
+  punch-out:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ───────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 3. Install Playwright + Chromium ─────────────────────
+      - name: Install Playwright and dependencies
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      # ── 4. Log current IST time ───────────────────────────────
+      - name: Show run time (IST)
+        run: |
+          echo "UTC : $(date -u)"
+          echo "IST : $(TZ='Asia/Kolkata' date)"
+
+      # ── 5. Run the Playwright automation ─────────────────────
+      - name: Run VISTA Punch Out
+        env:
+          LOGIN_URL: ${{ github.event.inputs.login_url || 'https://vista.yourcompany.com/login' }}
+          USERNAME:  ${{ secrets.LOGIN_USERNAME }}
+          PASSWORD:  ${{ secrets.LOGIN_PASSWORD }}
+        run: python main.py
