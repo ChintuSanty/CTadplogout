@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VISTA Auto Punch Out Scheduler</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      padding: 40px;
+      width: 100%;
+      max-width: 560px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .logo h1 {
+      font-size: 1.8rem;
+      color: #0f3460;
+      font-weight: 700;
+    }
+    .logo p {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+      margin-top: 18px;
+    }
+    input[type="text"], input[type="password"], input[type="url"], input[type="time"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d0d7de;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #0f3460; }
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .day-btn {
+      padding: 8px 4px;
+      border: 1.5px solid #d0d7de;
+      border-radius: 8px;
+      background: #f6f8fa;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .day-btn.active {
+      background: #0f3460;
+      border-color: #0f3460;
+      color: #fff;
+    }
+    .time-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .time-row > div { flex: 1; }
+    .tz-badge {
+      background: #e8f0fe;
+      color: #0f3460;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .generate-btn {
+      width: 100%;
+      margin-top: 28px;
+      padding: 14px;
+      background: linear-gradient(90deg, #0f3460, #533483);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .generate-btn:hover { opacity: 0.9; }
+    .output-section {
+      margin-top: 28px;
+      display: none;
+    }
+    .output-section h3 {
+      font-size: 0.95rem;
+      color: #0f3460;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .code-box {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .action-btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .action-btns button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-copy { background: #2ea043; color: #fff; }
+    .btn-download { background: #0f3460; color: #fff; }
+    .btn-copy:hover, .btn-download:hover { opacity: 0.85; }
+    .info-box {
+      background: #fff8e1;
+      border-left: 4px solid #f59e0b;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-top: 16px;
+      font-size: 0.82rem;
+      color: #555;
+      line-height: 1.6;
+    }
+    .info-box strong { color: #333; }
+    .divider {
+      border: none;
+      border-top: 1.5px solid #eee;
+      margin: 24px 0 0;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>&#9200; VISTA Auto Punch Out</h1>
+    <p>Generate a GitHub Actions workflow for scheduled punch-out</p>
+  </div>
+
+  <label>VISTA Login URL</label>
+  <input type="url" id="loginUrl" value="https://vista.yourcompany.com/login" />
+
+  <label>Username</label>
+  <input type="text" id="username" placeholder="your.username@company.com" />
+
+  <label>Password</label>
+  <input type="password" id="password" placeholder="Your VISTA password" />
+
+  <label>Select Days to Run</label>
+  <div class="days-grid" id="daysGrid">
+    <div class="day-btn" data-day="0">Sun</div>
+    <div class="day-btn active" data-day="1">Mon</div>
+    <div class="day-btn active" data-day="2">Tue</div>
+    <div class="day-btn active" data-day="3">Wed</div>
+    <div class="day-btn active" data-day="4">Thu</div>
+    <div class="day-btn active" data-day="5">Fri</div>
+    <div class="day-btn" data-day="6">Sat</div>
+  </div>
+
+  <label>Punch-Out Time (IST)</label>
+  <div class="time-row">
+    <div>
+      <input type="time" id="punchTime" value="18:30" />
+    </div>
+    <div class="tz-badge">IST (UTC+5:30)</div>
+  </div>
+
+  <button class="generate-btn" onclick="generate()">&#9889; Generate Workflow YAML</button>
+
+  <div class="output-section" id="outputSection">
+    <hr class="divider" />
+    <h3>&#128196; Generated workflow YAML</h3>
+    <div class="code-box" id="codeBox"></div>
+    <div class="action-btns">
+      <button class="btn-copy" onclick="copyYaml()">&#128203; Copy YAML</button>
+      <button class="btn-download" onclick="downloadYaml()">&#11015; Download .yml</button>
+    </div>
+    <div class="info-box">
+      <strong>How to use:</strong><br/>
+      1. Download the YAML file above.<br/>
+      2. In your GitHub repo go to <strong>Settings &rarr; Secrets &rarr; Actions</strong>.<br/>
+      3. Add secrets: <code>LOGIN_USERNAME</code> and <code>LOGIN_PASSWORD</code>.<br/>
+      4. Upload the YAML to <code>.github/workflows/</code> — GitHub will schedule it automatically.
+    </div>
+  </div>
+</div>
+
+<script>
+  // Day toggle
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
+
+  function toCron(timeStr, days) {
+    const [h, m] = timeStr.split(':').map(Number);
+    // Convert IST to UTC:  UTC = IST - 5:30
+    let utcMin = m - 30;
+    let utcHour = h - 5;
+    if (utcMin < 0) { utcMin += 60; utcHour -= 1; }
+    if (utcHour < 0) { utcHour += 24; }
+    const dayStr = days.length === 7 ? '*' : days.join(',');
+    return `${utcMin} ${utcHour} * * ${dayStr}`;
+  }
+
+  let generatedYaml = '';
+
+  function generate() {
+    const loginUrl  = document.getElementById('loginUrl').value.trim();
+    const username  = document.getElementById('username').value.trim();
+    const password  = document.getElementById('password').value.trim();
+    const punchTime = document.getElementById('punchTime').value;
+
+    const activeDays = Array.from(document.querySelectorAll('.day-btn.active'))
+                           .map(b => parseInt(b.dataset.day));
+
+    if (!loginUrl || !username || !punchTime || activeDays.length === 0) {
+      alert('Please fill in all required fields and select at least one day.');
+      return;
+    }
+
+    const cron = toCron(punchTime, activeDays);
+    const [h, m] = punchTime.split(':');
+    const ampm = parseInt(h) >= 12 ? 'PM' : 'AM';
+    const h12  = ((parseInt(h) % 12) || 12).toString().padStart(2, '0');
+
+    generatedYaml = `name: VISTA Daily Punch Out
+
+on:
+  workflow_dispatch: {}
+
+  schedule:
+    # ${h12}:${m} ${ampm} IST on days: ${activeDays.join(',')} (Sun=0 … Sat=6)
+    # Converted to UTC for GitHub cron
+    - cron: "${cron}"
+
+env:
+  TZ: "Asia/Kolkata"
+
+jobs:
+  punch-out:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Show run time in IST
+        run: |
+          echo "UTC  : $(date -u)"
+          echo "IST  : $(TZ='Asia/Kolkata' date)"
+
+      - name: Run Punch Out automation
+        env:
+          LOGIN_URL: "${loginUrl}"
+          USERNAME: \${{ secrets.LOGIN_USERNAME }}
+          PASSWORD: \${{ secrets.LOGIN_PASSWORD }}
+        run: python main.py
+`;
+
+    const box = document.getElementById('codeBox');
+    box.textContent = generatedYaml;
+    document.getElementById('outputSection').style.display = 'block';
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function copyYaml() {
+    navigator.clipboard.writeText(generatedYaml)
+      .then(() => alert('Copied to clipboard!'))
+      .catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = generatedYaml;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('Copied!');
+      });
+  }
+
+  function downloadYaml() {
+    const blob = new Blob([generatedYaml], { type: 'text/yaml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'vista-punch-out.yml';
+    a.click();
+  }
+</script>
+</body>
+</html>
